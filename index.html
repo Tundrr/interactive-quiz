@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Study Partner | Premium Quiz App</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- App Container -->
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="url(#grad1)" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <defs>
+              <linearGradient id="grad1" x1="2" y1="2" x2="22" y2="12" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#8b5cf6"/>
+                <stop offset="1" stop-color="#3b82f6"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <span class="logo-text">QuizMaster</span>
+        </div>
+        <button class="close-sidebar-btn" id="closeSidebarBtn" aria-label="Close sidebar">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <span class="nav-section-title">Topics</span>
+        <div class="topic-list" id="topicList">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div class="progress-summary">
+          <span class="progress-title">Overall Progress</span>
+          <div class="progress-bar-container">
+            <div class="progress-bar" id="overallProgressBar" style="width: 0%"></div>
+          </div>
+          <span class="progress-text" id="overallProgressText">0% Complete</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- Top Header -->
+      <header class="top-header">
+        <div class="header-left">
+          <button class="menu-btn" id="menuBtn" aria-label="Open navigation">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+          <h1 class="current-topic-title" id="currentTopicTitle">Loading Topic...</h1>
+        </div>
+        
+        <div class="header-right">
+          <!-- Filter Dropdown -->
+          <div class="filter-wrapper">
+            <label for="quizFilter" class="sr-only">Filter Questions</label>
+            <select id="quizFilter" class="filter-select">
+              <option value="all">All Questions</option>
+              <option value="mcq">MCQs Only</option>
+              <option value="tf">True / False Only</option>
+            </select>
+          </div>
+          
+          <!-- Theme Toggle Button -->
+          <button class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle light/dark theme">
+            <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Dashboard / Content Body -->
+      <div class="content-body">
+        
+        <!-- Stats Tracker Bar -->
+        <div class="stats-tracker" id="statsTracker">
+          <div class="stat-card">
+            <span class="stat-label">Progress</span>
+            <span class="stat-value" id="progressVal">0 / 0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Correct</span>
+            <span class="stat-value text-success" id="correctVal">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Incorrect</span>
+            <span class="stat-value text-error" id="incorrectVal">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Accuracy</span>
+            <span class="stat-value text-accent" id="accuracyVal">0%</span>
+          </div>
+        </div>
+
+        <!-- Quiz Container -->
+        <section class="quiz-container" id="quizContainer">
+          
+          <!-- Progress bar -->
+          <div class="quiz-progress-wrapper">
+            <div class="quiz-progress-bar-container">
+              <div class="quiz-progress-bar" id="quizProgressBar" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Active Question Card -->
+          <div class="question-card" id="questionCard">
+            <div class="question-header">
+              <span class="question-badge" id="questionTypeBadge">MULTIPLE CHOICE</span>
+              <span class="question-number" id="questionNumberDisplay">Question 1</span>
+            </div>
+            
+            <h2 class="question-text" id="questionText">Loading question content...</h2>
+            
+            <!-- MCQ Options Wrapper -->
+            <div class="mcq-options" id="mcqOptions">
+              <!-- Dynamically populated MCQ choices -->
+            </div>
+
+            <!-- True False Options Wrapper -->
+            <div class="tf-options" id="tfOptions" style="display: none;">
+              <button class="tf-btn" id="tfTrueBtn" data-value="T">
+                <span class="tf-letter">T</span>
+                <span class="tf-label">True</span>
+              </button>
+              <button class="tf-btn" id="tfFalseBtn" data-value="F">
+                <span class="tf-letter">F</span>
+                <span class="tf-label">False</span>
+              </button>
+            </div>
+
+            <!-- Explanation Box -->
+            <div class="explanation-box" id="explanationBox" style="display: none;">
+              <h3 class="explanation-title" id="explanationTitle">Explanation</h3>
+              <p class="explanation-text" id="explanationContent">Explanation content...</p>
+            </div>
+
+            <!-- Card Actions -->
+            <div class="question-footer">
+              <button class="btn btn-secondary" id="resetTopicBtn">Reset Quiz</button>
+              <button class="btn btn-primary" id="nextBtn" disabled>
+                <span>Next Question</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Quiz Completed Results Dashboard -->
+        <section class="results-container" id="resultsContainer" style="display: none;">
+          <div class="results-card">
+            <div class="results-header">
+              <div class="trophy-wrapper">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+                  <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+                  <path d="M4 22h16"></path>
+                  <path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34"></path>
+                  <path d="M12 2a6 6 0 0 1 6 6v3.5c0 3.04-2.46 5.5-5.5 5.5h-1C8.46 17 6 14.54 6 11.5V8a6 6 0 0 1 6-6Z" fill="url(#grad2)"></path>
+                  <defs>
+                    <linearGradient id="grad2" x1="6" y1="2" x2="18" y2="17" gradientUnits="userSpaceOnUse">
+                      <stop stop-color="#f59e0b"/>
+                      <stop offset="1" stop-color="#d97706"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+              <h2 class="results-title">Quiz Completed!</h2>
+              <p class="results-subtitle" id="resultsSubtitle">Excellent job, you have completed this topic!</p>
+            </div>
+
+            <!-- Grade / Circle Progress -->
+            <div class="score-display-wrapper">
+              <div class="score-circle-container">
+                <svg class="score-ring" width="160" height="160">
+                  <circle class="score-ring-bg" cx="80" cy="80" r="70" stroke-width="12" fill="transparent"/>
+                  <circle class="score-ring-bar" id="scoreRingBar" cx="80" cy="80" r="70" stroke-width="12" fill="transparent" stroke-dasharray="439.8" stroke-dashoffset="439.8" stroke-linecap="round"/>
+                </svg>
+                <div class="score-value-container">
+                  <span class="score-percentage" id="scorePercent">0%</span>
+                  <span class="score-ratio" id="scoreRatio">0 / 0 Correct</span>
+                </div>
+              </div>
+              
+              <div class="grade-badge" id="gradeBadge">A+</div>
+            </div>
+
+            <!-- Detailed stats breakdown -->
+            <div class="results-stats-grid">
+              <div class="result-stat-box">
+                <span class="box-val" id="resTotalQ">0</span>
+                <span class="box-label">Total Questions</span>
+              </div>
+              <div class="result-stat-box">
+                <span class="box-val text-success" id="resCorrect">0</span>
+                <span class="box-label">Correct</span>
+              </div>
+              <div class="result-stat-box">
+                <span class="box-val text-error" id="resIncorrect">0</span>
+                <span class="box-label">Incorrect</span>
+              </div>
+            </div>
+
+            <!-- Complete/Reset controls -->
+            <div class="results-actions">
+              <button class="btn btn-secondary" id="retryQuizBtn">Retry Quiz</button>
+              <button class="btn btn-primary" id="nextTopicBtn">Next Topic</button>
+            </div>
+          </div>
+
+          <!-- Detailed Quiz Review List -->
+          <div class="review-section">
+            <h3 class="review-title">Question-by-Question Review</h3>
+            <div class="review-list" id="reviewList">
+              <!-- Dynamically populated review cards -->
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- JS Files -->
+  <script src="questions.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
