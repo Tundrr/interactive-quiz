@@ -44,6 +44,7 @@ const explanationTitle = document.getElementById('explanationTitle');
 const explanationContent = document.getElementById('explanationContent');
 
 const nextBtn = document.getElementById('nextBtn');
+const prevBtn = document.getElementById('prevBtn');
 const resetTopicBtn = document.getElementById('resetTopicBtn');
 
 const resultsContainer = document.getElementById('resultsContainer');
@@ -95,6 +96,11 @@ closeSidebarBtn.addEventListener('click', () => sidebar.classList.remove('open')
 // Quiz Loading & Filtering
 // ==========================================================================
 
+function getQuestionKey(q) {
+  if (!q) return '';
+  return `${q.type.toLowerCase()}-${q.number}`;
+}
+
 function initApp() {
   initTheme();
   renderSidebar();
@@ -109,9 +115,11 @@ function renderSidebar() {
     item.className = `topic-item ${topic.id === state.activeTopicId ? 'active' : ''}`;
     item.dataset.id = topic.id;
     
-    // Retrieve progress
+    // Retrieve progress based on total unique questions
     const progress = getSavedTopicProgress(topic.id);
-    const percent = progress ? Math.round((Object.keys(progress.userAnswers).length / progress.totalQ) * 100) : 0;
+    const totalQ = topic.tf.length + topic.mcq.length;
+    const answeredCount = progress && progress.userAnswers ? Object.keys(progress.userAnswers).length : 0;
+    const percent = totalQ > 0 ? Math.round((answeredCount / totalQ) * 100) : 0;
     
     item.innerHTML = `
       <span class="topic-item-title">${topic.title}</span>
@@ -171,24 +179,33 @@ function filterQuestions() {
     questions = mappedTFs;
   }
 
-  // Attempt to restore saved state for this filter
-  const savedState = getSavedTopicProgress(state.activeTopicId, state.filterType);
-  if (savedState && savedState.shuffledOrder && savedState.shuffledOrder.length === questions.length) {
-    // Reconstruct questions in saved shuffled order
-    state.questions = savedState.shuffledOrder.map(item => {
-      return questions.find(q => q.type === item.type && q.number === item.number);
-    }).filter(Boolean);
-    state.currentIndex = savedState.currentIndex;
-    state.userAnswers = savedState.userAnswers;
+  const saved = getSavedTopicProgress(state.activeTopicId);
+  if (saved) {
+    // Load shared answers
+    state.userAnswers = saved.userAnswers || {};
+    
+    const savedOrder = saved.shuffledOrders && saved.shuffledOrders[state.filterType];
+    const savedIndex = saved.currentIndices && saved.currentIndices[state.filterType];
+    
+    if (savedOrder && savedOrder.length === questions.length) {
+      // Reconstruct order
+      state.questions = savedOrder.map(item => {
+        return questions.find(q => q.type === item.type && q.number === item.number);
+      }).filter(Boolean);
+      state.currentIndex = typeof savedIndex === 'number' ? savedIndex : 0;
+    } else {
+      // No saved order for this filter: shuffle a fresh one
+      state.questions = shuffleArray([...questions]);
+      state.currentIndex = 0;
+    }
     recalculateStats();
   } else {
-    // Shuffle the list of questions for a fresh attempt
+    // Fresh start or reset: shuffle and set index 0
     state.questions = shuffleArray([...questions]);
     state.currentIndex = 0;
     state.userAnswers = {};
     state.correctCount = 0;
     state.incorrectCount = 0;
-    // Save the newly shuffled questions immediately
     if (questions.length > 0) {
       saveTopicProgress();
     }
@@ -239,13 +256,16 @@ function renderQuestion() {
   questionNumberDisplay.textContent = `Question ${state.currentIndex + 1} of ${state.questions.length}`;
   questionText.textContent = question.question;
 
-  // Reset next button
+  // Reset next and prev buttons
   nextBtn.disabled = true;
+  prevBtn.disabled = state.currentIndex === 0;
 
   // Check if this question was already answered
-  const previousAnswer = state.userAnswers[state.currentIndex];
+  const qKey = getQuestionKey(question);
+  const previousAnswer = state.userAnswers[qKey];
   if (previousAnswer) {
     showExplanation(previousAnswer.isCorrect, question.explanation);
+    nextBtn.disabled = false;
   } else {
     explanationBox.style.display = 'none';
   }
@@ -384,12 +404,14 @@ function handleTFSelection(selectedBtn, selectedVal, question) {
 }
 
 function recordAnswer(selectedVal, isCorrect) {
-  state.userAnswers[state.currentIndex] = {
+  const question = state.questions[state.currentIndex];
+  const qKey = getQuestionKey(question);
+  
+  state.userAnswers[qKey] = {
     selected: selectedVal,
     isCorrect: isCorrect
   };
 
-  const question = state.questions[state.currentIndex];
   showExplanation(isCorrect, question.explanation);
 
   // Enable Next button and update cache
@@ -427,6 +449,15 @@ nextBtn.addEventListener('click', () => {
   state.currentIndex++;
   saveTopicProgress();
   showQuizOrResults();
+});
+
+// Previous button handler
+prevBtn.addEventListener('click', () => {
+  if (state.currentIndex > 0) {
+    state.currentIndex--;
+    saveTopicProgress();
+    showQuizOrResults();
+  }
 });
 
 // Reset Topic
@@ -507,7 +538,8 @@ function renderReviewList() {
   reviewList.innerHTML = '';
   
   state.questions.forEach((q, idx) => {
-    const userAns = state.userAnswers[idx];
+    const qKey = getQuestionKey(q);
+    const userAns = state.userAnswers[qKey];
     const isCorrect = userAns ? userAns.isCorrect : false;
     const selected = userAns ? userAns.selected : 'Unanswered';
     
@@ -594,21 +626,26 @@ nextTopicBtn.addEventListener('click', () => {
 // LocalStorage Progress Persistence
 // ==========================================================================
 
-function getStorageKey(topicId, filterType) {
-  const type = filterType || state.filterType;
-  return `quiz-progress-t${topicId}-${type}`;
+function getStorageKey(topicId) {
+  return `quiz-progress-t${topicId}`;
 }
 
 function saveTopicProgress() {
   const storageKey = getStorageKey(state.activeTopicId);
-  const shuffledOrder = state.questions.map(q => ({ type: q.type, number: q.number }));
-  const data = {
-    currentIndex: state.currentIndex,
-    userAnswers: state.userAnswers,
-    totalQ: state.questions.length,
-    shuffledOrder: shuffledOrder
-  };
-  localStorage.setItem(storageKey, JSON.stringify(data));
+  
+  const raw = localStorage.getItem(storageKey);
+  const existing = raw ? JSON.parse(raw) : { shuffledOrders: {}, currentIndices: {}, userAnswers: {} };
+  
+  if (!existing.shuffledOrders) existing.shuffledOrders = {};
+  if (!existing.currentIndices) existing.currentIndices = {};
+  if (!existing.userAnswers) existing.userAnswers = {};
+
+  existing.shuffledOrders[state.filterType] = state.questions.map(q => ({ type: q.type, number: q.number }));
+  existing.currentIndices[state.filterType] = state.currentIndex;
+  
+  existing.userAnswers = { ...existing.userAnswers, ...state.userAnswers };
+
+  localStorage.setItem(storageKey, JSON.stringify(existing));
 }
 
 function shuffleArray(array) {
@@ -619,8 +656,8 @@ function shuffleArray(array) {
   return array;
 }
 
-function getSavedTopicProgress(topicId, filterType) {
-  const storageKey = getStorageKey(topicId, filterType);
+function getSavedTopicProgress(topicId) {
+  const storageKey = getStorageKey(topicId);
   const raw = localStorage.getItem(storageKey);
   return raw ? JSON.parse(raw) : null;
 }
@@ -634,11 +671,15 @@ function recalculateStats() {
   state.correctCount = 0;
   state.incorrectCount = 0;
   
-  Object.keys(state.userAnswers).forEach(key => {
-    if (state.userAnswers[key].isCorrect) {
-      state.correctCount++;
-    } else {
-      state.incorrectCount++;
+  state.questions.forEach(q => {
+    const qKey = getQuestionKey(q);
+    const ans = state.userAnswers[qKey];
+    if (ans) {
+      if (ans.isCorrect) {
+        state.correctCount++;
+      } else {
+        state.incorrectCount++;
+      }
     }
   });
 }
@@ -647,14 +688,12 @@ function updateOverallProgress() {
   let grandTotalQ = 0;
   let grandAnswered = 0;
 
-  // We check the 'all' filter status for all topics to evaluate completion
   quizData.forEach(topic => {
-    // MCQ & T/F Count
     const total = topic.tf.length + topic.mcq.length;
     grandTotalQ += total;
 
-    const progress = getSavedTopicProgress(topic.id, 'all');
-    if (progress) {
+    const progress = getSavedTopicProgress(topic.id);
+    if (progress && progress.userAnswers) {
       grandAnswered += Object.keys(progress.userAnswers).length;
     }
   });
