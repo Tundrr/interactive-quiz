@@ -13,6 +13,35 @@ let state = {
   theme: 'dark'
 };
 
+// Safe Storage Wrapper to handle incognito mode / disabled storage and cross-domain storage pollution
+const safeStorage = {
+  _data: {},
+  getItem(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      console.warn("Storage access failed, using in-memory fallback:", e);
+      return this._data[key] || null;
+    }
+  },
+  setItem(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      console.warn("Storage access failed, using in-memory fallback:", e);
+      this._data[key] = String(value);
+    }
+  },
+  removeItem(key) {
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      console.warn("Storage access failed, using in-memory fallback:", e);
+      delete this._data[key];
+    }
+  }
+};
+
 // DOM Cache
 const sidebar = document.getElementById('sidebar');
 const menuBtn = document.getElementById('menuBtn');
@@ -66,21 +95,30 @@ const reviewList = document.getElementById('reviewList');
 // ==========================================================================
 
 function initTheme() {
-  const savedTheme = localStorage.getItem('quiz-theme') || 'dark';
-  setTheme(savedTheme);
+  try {
+    const savedTheme = safeStorage.getItem('quiz-theme') || 'dark';
+    setTheme(savedTheme);
+  } catch (e) {
+    console.error("Error in initTheme:", e);
+    setTheme('dark');
+  }
 }
 
 function setTheme(theme) {
-  state.theme = theme;
-  document.documentElement.setAttribute('data-theme', theme);
-  localStorage.setItem('quiz-theme', theme);
-  
-  if (theme === 'dark') {
-    themeSunIcon.style.display = 'block';
-    themeMoonIcon.style.display = 'none';
-  } else {
-    themeSunIcon.style.display = 'none';
-    themeMoonIcon.style.display = 'block';
+  try {
+    state.theme = theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    safeStorage.setItem('quiz-theme', theme);
+    
+    if (theme === 'dark') {
+      themeSunIcon.style.display = 'block';
+      themeMoonIcon.style.display = 'none';
+    } else {
+      themeSunIcon.style.display = 'none';
+      themeMoonIcon.style.display = 'block';
+    }
+  } catch (e) {
+    console.error("Error in setTheme:", e);
   }
 }
 
@@ -103,6 +141,11 @@ function getQuestionKey(q) {
 
 function initApp() {
   initTheme();
+  if (typeof quizData === 'undefined' || !Array.isArray(quizData) || quizData.length === 0) {
+    console.error("Quiz data is not loaded or is empty!");
+    currentTopicTitle.textContent = "Error: Quiz data could not be loaded.";
+    return;
+  }
   renderSidebar();
   loadTopic(state.activeTopicId);
   updateOverallProgress();
@@ -631,21 +674,45 @@ function getStorageKey(topicId) {
 }
 
 function saveTopicProgress() {
-  const storageKey = getStorageKey(state.activeTopicId);
-  
-  const raw = localStorage.getItem(storageKey);
-  const existing = raw ? JSON.parse(raw) : { shuffledOrders: {}, currentIndices: {}, userAnswers: {} };
-  
-  if (!existing.shuffledOrders) existing.shuffledOrders = {};
-  if (!existing.currentIndices) existing.currentIndices = {};
-  if (!existing.userAnswers) existing.userAnswers = {};
+  try {
+    const storageKey = getStorageKey(state.activeTopicId);
+    const raw = safeStorage.getItem(storageKey);
+    let existing = null;
+    
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          existing = parsed;
+        }
+      } catch (e) {
+        console.error("Error parsing existing progress, resetting state:", e);
+      }
+    }
+    
+    if (!existing) {
+      existing = { shuffledOrders: {}, currentIndices: {}, userAnswers: {} };
+    }
+    
+    if (!existing.shuffledOrders || typeof existing.shuffledOrders !== 'object' || Array.isArray(existing.shuffledOrders)) {
+      existing.shuffledOrders = {};
+    }
+    if (!existing.currentIndices || typeof existing.currentIndices !== 'object' || Array.isArray(existing.currentIndices)) {
+      existing.currentIndices = {};
+    }
+    if (!existing.userAnswers || typeof existing.userAnswers !== 'object' || Array.isArray(existing.userAnswers)) {
+      existing.userAnswers = {};
+    }
 
-  existing.shuffledOrders[state.filterType] = state.questions.map(q => ({ type: q.type, number: q.number }));
-  existing.currentIndices[state.filterType] = state.currentIndex;
-  
-  existing.userAnswers = { ...existing.userAnswers, ...state.userAnswers };
+    existing.shuffledOrders[state.filterType] = state.questions.map(q => ({ type: q.type, number: q.number }));
+    existing.currentIndices[state.filterType] = state.currentIndex;
+    
+    existing.userAnswers = { ...existing.userAnswers, ...state.userAnswers };
 
-  localStorage.setItem(storageKey, JSON.stringify(existing));
+    safeStorage.setItem(storageKey, JSON.stringify(existing));
+  } catch (e) {
+    console.error("Error saving topic progress:", e);
+  }
 }
 
 function shuffleArray(array) {
@@ -657,14 +724,29 @@ function shuffleArray(array) {
 }
 
 function getSavedTopicProgress(topicId) {
-  const storageKey = getStorageKey(topicId);
-  const raw = localStorage.getItem(storageKey);
-  return raw ? JSON.parse(raw) : null;
+  try {
+    const storageKey = getStorageKey(topicId);
+    const raw = safeStorage.getItem(storageKey);
+    if (!raw) return null;
+    
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed;
+    }
+    return null;
+  } catch (e) {
+    console.error("Error loading topic progress:", e);
+    return null;
+  }
 }
 
 function clearTopicProgress() {
-  const storageKey = getStorageKey(state.activeTopicId);
-  localStorage.removeItem(storageKey);
+  try {
+    const storageKey = getStorageKey(state.activeTopicId);
+    safeStorage.removeItem(storageKey);
+  } catch (e) {
+    console.error("Error clearing topic progress:", e);
+  }
 }
 
 function recalculateStats() {
