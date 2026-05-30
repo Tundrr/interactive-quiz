@@ -439,7 +439,7 @@ resetTopicBtn.addEventListener('click', () => {
     clearTopicProgress();
     renderSidebar(); // Update completion text
     updateOverallProgress();
-    showQuizOrResults();
+    filterQuestions();
   }
 });
 
@@ -576,7 +576,7 @@ retryQuizBtn.addEventListener('click', () => {
   clearTopicProgress();
   renderSidebar();
   updateOverallProgress();
-  showQuizOrResults();
+  filterQuestions();
 });
 
 // Next Topic Navigation
